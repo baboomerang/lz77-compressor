@@ -8,7 +8,7 @@
 inline int filesize(std::ifstream&);
 inline void copy(struct Triplet&, std::vector<char>&);
 std::vector<struct Triplet> chooseBest(std::vector<struct Triplet>);
-char* compress(char*&, int&);
+std::vector<char> compress(char*&, int&);
 
 struct Triplet {
     int offset;
@@ -23,19 +23,21 @@ int main(int argc, char* argv[]) {
     }
 
     std::ifstream input{argv[1], std::ios_base::binary};
-    int size = filesize(input);
 
+    int size = filesize(input);
     char* array{new char[size]};
     input.read(array, size);
 
-    compress(array, size);
+    std::vector<char> result = compress(array, size);
+    //output.write(result.data(), result.size());
+    //output.close();
     return 0;
 }
 
 inline int filesize(std::ifstream &file) {
     file.seekg(std::ios::beg, std::ios::end);
     int size = file.tellg(); //total number of bytes in stream
-    file.seekg(0);          //set pointer to beginning
+    file.seekg(0);           //set pointer to beginning
     return size;
 }
 
@@ -58,7 +60,7 @@ std::vector<Triplet> chooseBest(std::vector<Triplet> buffer) {
     return buffer;
 }
 
-char* compress(char* &array, int &size) {
+std::vector<char> compress(char* &array, int &size) {
     static std::vector<char> result;
     std::vector<char> look;
     std::vector<char> search;
@@ -71,7 +73,7 @@ char* compress(char* &array, int &size) {
         look.push_back(array[x]);
 
         if (look.size() > LOOKAHEAD_SIZE) {
-            look.erase(look.begin());   //remove the copied token from the vector
+            look.erase(look.begin());    //remove the copied token from the vector
         }
 
         //init vector iterators
@@ -80,23 +82,27 @@ char* compress(char* &array, int &size) {
 
         int offset = 0;
         int length = 0;
+
         //traverse both vectors simulaneously
         while (s_it < search.end() && l_it < look.end()) {
             if (*s_it == *l_it) {
-                if (!offset)     //offset is non-zero UNTIL FIRST match
+                if (!offset)                //offset is non-zero UNTIL FIRST match
                     offset = std::distance(s_it, search.end());
+                
                 s_it++;
                 l_it++;
                 length++;
 
                 if (l_it >= look.end() || s_it >= search.end())
                     break; //if either vector reach their end, its a perfect match
+            
             } else {
-                if (offset) { //case 1: finds some matches but hits a mismatch
+                if (offset) {     //case 1: finds some matches but hits a mismatch
                     paths.push_back(Triplet{offset, length, *l_it});
                     offset = 0;
                     length = 0;
                 }
+
             }
         }
 
@@ -107,23 +113,21 @@ char* compress(char* &array, int &size) {
         if (paths.size() > 1)
             chooseBest(paths);   //best path is largest, larger = more compression
 
-        copy(paths[0], result);
         length = paths[0].length;
 
-        //at this point, best path with longest length is chosen for current token
-        //keep pop items from look vector into search vector until the length
-        //that length CANT EVER be greater than LOOKAHEAD_SIZE
-
-        //THIS IS THE DUMBEST SOLUTION EVER, TO BE REFACTORED SOMETIME IN THE FUTURE
+        //THIS IS THE DUMBEST SOLUTION EVER, TO BE REFACTORED IN THE FUTURE
         if (look.size() == LOOKAHEAD_SIZE) {
-            while (length >= 0) { //when length is 0, TOKEN STILL NEEDS TO BE MOVED
+            while (length >= 0) { //when length is 0 TOKEN STILL NEEDS TO BE MOVED
                 search.push_back(look.at(0));
                 look.erase(look.begin());
 
-                if (search.size() > SEARCH_SIZE)
+                if (search.size() > SEARCH_SIZE) //if > due to recent push, drop one
                     search.erase(search.begin());
             }
         }
+
+        copy(paths[0], result);
+
     }
     //end of file handling for lz77. both vectors need to be joined somehow
     //search vector has to expand into lookahead and compress as one
@@ -132,5 +136,5 @@ char* compress(char* &array, int &size) {
 
 
 
-    return result.data();
+    return result;
 }
