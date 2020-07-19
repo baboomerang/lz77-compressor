@@ -114,11 +114,23 @@ char* compress(char* &array, int &size) {
         //keep pop items from look vector into search vector until the length
         //that length CANT EVER be greater than LOOKAHEAD_SIZE
 
+        //THIS IS THE DUMBEST SOLUTION EVER, TO BE REFACTORED SOMETIME IN THE FUTURE
+        if (look.size() == LOOKAHEAD_SIZE) {
+            while (length >= 0) { //when length is 0, TOKEN STILL NEEDS TO BE MOVED
+                search.push_back(look.at(0));
+                look.erase(look.begin());
 
-
+                if (search.size() > SEARCH_SIZE)
+                    search.erase(search.begin());
+            }
+        }
     }
     //end of file handling for lz77. both vectors need to be joined somehow
     //search vector has to expand into lookahead and compress as one
+    //
+    // *INSERT SOLUTION HERE*
+
+
 
     return result.data();
 }
