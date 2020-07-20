@@ -56,6 +56,7 @@ int main(int argc, char* argv[]) {
     output.write(result.data(), result.size());
     output.close();
 
+    delete[] array;
     std::cout << "Previous size: " << size << " ";
     std::cout << "Compressed size: " << result.size() << "\n";
     std::cout << "Results saved to ./" << argv[1] << ".lz77" << "\n";
@@ -65,9 +66,9 @@ int main(int argc, char* argv[]) {
 
 std::vector<char> encode(char* &array, int &size) {
     std::vector<char> look;
-    look.reserve(4);
+    look.reserve(LOOKAHEAD_SIZE+1);
     std::vector<char> search;
-    search.reserve(5);
+    search.reserve(SEARCH_SIZE);
 
     std::vector<Triplet> paths;
     std::vector<char> output;
@@ -77,66 +78,62 @@ std::vector<char> encode(char* &array, int &size) {
         look.push_back(array[x]);
         x++;
 
-        if (look.size() == LOOKAHEAD_SIZE) { //begin the algorithm only when full
-            char token = look.at(0);
+        if (look.size() == LOOKAHEAD_SIZE) {
+             std::vector<char>::iterator l_it = look.begin(); 
+             int offset = 0;
+             int length = 0;
+             for (auto s_it = search.begin(); s_it < search.end(); s_it++) {
 
-            if (search.empty()) {
-                writeTriplet(Triplet{0, 0, token}, output);
-                transfer(search, SEARCH_SIZE, token);
-                look.erase(look.begin());
+                 if (*s_it == *l_it) {
+                     if (!offset)
+                         offset = std::distance(s_it, search.end());
+                     l_it++;
+                     length++;
 
-            } else {
-                std::vector<char>::iterator l_it = look.begin(); 
-                int offset = 0;
-                int length = 0;
-                for (auto s_it = search.begin(); s_it < search.end(); s_it++) {
+                     if (length == int(look.size()-1))
+                         break;
 
-                    if (*s_it == *l_it) {
-                        if (!offset)
-                            offset = std::distance(s_it, search.end());
-                        l_it++;
-                        length++;
+                 } else {
+                     if (offset)
+                         paths.push_back(Triplet{offset, length, *l_it});
+                     length = 0;
+                     offset = 0;
+                 }
 
-                        if (length == int(look.size()))
-                            break;
+             }
 
-                    } else {
-                        if (offset)
-                            paths.push_back(Triplet{offset, length, *l_it});
-                        length = 0;
-                        offset = 0;
-                    }
+             /*  above for loop will find all possible triplets for a given token
+             *  (unlike in real life where we can visually process the best path)
+             *  we need to collect all in a vector and filter based on length.
+             *  largest length = best compression */
 
-                }
+             if (offset)  //a match is found, but reached the end of the vector
+                 paths.push_back(Triplet{offset, length, *l_it}); 
+             else if (paths.empty())  //no match was found in the dictionary
+                 paths.push_back(Triplet{0, 0, *l_it});
 
-               /*  above for loop will find all possible triplets for a given token
-                *  (unlike in real life where we can visually process the best path)
-                *  we need to collect all in a vector and filter based on length.
-                *  largest length = best compression */
 
-                if (offset) { //a match is found, but reached the end of the vector
-                    paths.push_back(Triplet{offset, length, *l_it});
-                }
-                else if (paths.empty()) { //no match was found in the dictionary
-                    paths.push_back(Triplet{0, 0, *l_it});
-                }
+             Triplet ideal = chooseBest(paths);
+             writeTriplet(ideal, output);
+             
+             /* safely transfer the read data from lookahead buffer
+              * into search buffer */
 
-                Triplet ideal = chooseBest(paths);
-                writeTriplet(ideal, output);
-                
-                /* saftely transfers the read data from lookahead buffer
-                 * into search buffer */
-                for (auto i = 0; i <= ideal.length; ++i) {
-                    transfer(search, SEARCH_SIZE, look.at(0));
-                    look.erase(look.begin());
-                }
+             length = ideal.length + 1;
+             do {
+                 transfer(search, SEARCH_SIZE, look.at(0));
+                 look.erase(look.begin());
+                 length--;
+             } while (length);
 
-                while (!paths.empty())
-                    paths.erase(paths.begin());
-
-            }
+             while (!paths.empty())
+                 paths.erase(paths.begin());
         }
     }
+    // sometimes, depending on lookahead & search buffer sizes, the last n-bytes
+    // of a file are not fully compressed. So something needs to be written here
+    // for that.
+
 
 
     return output;
