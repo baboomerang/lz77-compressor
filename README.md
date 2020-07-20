@@ -36,3 +36,13 @@ Usage: ./lz77 <file>
 example: ./home/baboomerang/lz77 test.bin
 (output will be saved as test.bin.lz77)
 ```
+
+## FILE COMPARISON
+This algorithm doesnt perform too well with very small data.
+```
+$ xxd case1.hex
+00000000: 6261 6e61 6e61 6261 6361 6e61 0a         bananabacana.
+$ xxd case1.hex.lz77
+00000000: 0000 6200 0061 0000 6e02 0261 0602 6306  ..b..a..n..a..c.
+00000010: 030a                                     ..
+```
