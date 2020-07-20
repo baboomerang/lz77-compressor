@@ -36,7 +36,6 @@ Usage: $ ./lz77 <file>
 example: $ ./lz77 case1.hex
 Previous size: 13 Compressed size: 18
 Results saved to ./case1.hex.lz77
-
 ```
 
 ## FILE COMPARISON
