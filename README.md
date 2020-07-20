@@ -26,7 +26,7 @@ responsible for the protection of your equipment and backup of your data, and\
 baboomerang (the writer & provider of this software) will not be liable for any damages\
 you may suffer in connection with using, modifying, or distributing this "lz77-compressor" or any part of it.
 ```
-### Compile the cpp code, figure it out for your system.
+### HOWTO INSTALL: Compile the cpp code and figure it out for your system.
 
 ### Usage
 
