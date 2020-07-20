@@ -29,16 +29,17 @@ you may suffer in connection with using, modifying, or distributing this "lz77-c
 ### HOWTO INSTALL: Compile the cpp code and figure it out for your system.
 
 ### Usage
-
+This algorithm doesnt perform too well with very small data.
 ```
-Usage: ./lz77 <file>
+Usage: $ ./lz77 <file>
 
-example: ./home/baboomerang/lz77 test.bin
-(output will be saved as test.bin.lz77)
+example: $ ./lz77 case1.hex
+Previous size: 13 Compressed size: 18
+Results saved to ./case1.hex.lz77
+
 ```
 
 ## FILE COMPARISON
-This algorithm doesnt perform too well with very small data.
 ```
 $ xxd case1.hex
 00000000: 6261 6e61 6e61 6261 6361 6e61 0a         bananabacana.
