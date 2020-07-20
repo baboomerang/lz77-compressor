@@ -1,20 +1,37 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <assert.h>
 
 #define LOOKAHEAD_SIZE 4
-#define SEARCH_SIZE 5
+#define SEARCH_SIZE 6
+
+/* LZ77 - COMPRESSOR written by baboomerang
+ * DISCLAIMER: This "lz-77" is provided by baboomerang (the writer & provider of this software)\
+"as is" and "with all faults." baboomerang (the writer & provider of this software)\
+makes no representations or warranties of any kind concerning the safety,\
+suitability, lack of viruses, inaccuracies, typographical errors, or other harmful\
+components of this "lz77-compressor". There are inherent dangers in the use of any software,\
+and you are solely responsible for determining whether this "lz77-compressor" is compatible \
+with your equipment and other software installed on your equipment. You are also solely \
+responsible for the protection of your equipment and backup of your data, and\
+baboomerang (the writer & provider of this software) will not be liable for any damages\
+you may suffer in connection with using, modifying, or distributing this "lz77-compressor" or any part of it.
+ */
 
 inline int filesize(std::ifstream&);
-inline void copy(struct Triplet&, std::vector<char>&);
-std::vector<struct Triplet> chooseBest(std::vector<struct Triplet>);
-std::vector<char> compress(char*&, int&);
+struct Triplet chooseBest(std::vector<Triplet>);
+inline void transfer(std::vector<char>&, uint8_t, char);
+inline void writeTriplet(struct Triplet, std::vector<char>&);
+std::vector<char> encode(char*&, int&);
+
 
 struct Triplet {
     int offset;
     int length;
     char token;
 };
+
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -23,118 +40,136 @@ int main(int argc, char* argv[]) {
     }
 
     std::ifstream input{argv[1], std::ios_base::binary};
+    assert(input.is_open());
 
     int size = filesize(input);
-    char* array{new char[size]};
+    char* array = {new char[size]};
     input.read(array, size);
+    input.close();
 
-    std::vector<char> result = compress(array, size);
-    //output.write(result.data(), result.size());
-    //output.close();
+
+
+    std::ofstream output{std::string(argv[1]) + ".lz77", std::ios_base::binary};
+    assert(output.is_open());
+
+    std::vector<char> result = encode(array, size);
+    output.write(result.data(), result.size());
+    output.close();
+
+    std::cout << "Previous size: " << size << " ";
+    std::cout << "Compressed size: " << result.size() << "\n";
+    std::cout << "Results saved to current pwd" << argv[1] << ".lz77" << "\n";
     return 0;
+}
+
+
+std::vector<char> encode(char* &array, int &size) {
+    std::vector<char> look;
+    look.reserve(4);
+    std::vector<char> search;
+    search.reserve(5);
+
+    std::vector<Triplet> paths;
+    std::vector<char> output;
+
+    int x = 0;
+    while (x < size) {
+        look.push_back(array[x]);
+        x++;
+
+        if (look.size() == LOOKAHEAD_SIZE) { //begin the algorithm only when full
+            char token = look.at(0);
+
+            if (search.empty()) {
+                writeTriplet(Triplet{0, 0, token}, output);
+                transfer(search, SEARCH_SIZE, token);
+                look.erase(look.begin());
+
+            } else {
+                std::vector<char>::iterator l_it = look.begin(); 
+                int offset = 0;
+                int length = 0;
+                for (auto s_it = search.begin(); s_it < search.end(); s_it++) {
+
+                    if (*s_it == *l_it) {
+                        if (!offset)
+                            offset = std::distance(s_it, search.end());
+                        l_it++;
+                        length++;
+
+                        if (length == int(look.size()))
+                            break;
+
+                    } else {
+                        if (offset)
+                            paths.push_back(Triplet{offset, length, *l_it});
+                        length = 0;
+                        offset = 0;
+                    }
+
+                }
+
+               /*  above for loop will find all possible triplets for a given token
+                *  (unlike in real life where we can visually process the best path)
+                *  we need to collect all in a vector and filter based on length.
+                *  largest length = best compression */
+
+                if (offset) { //a match is found, but reached the end of the vector
+                    paths.push_back(Triplet{offset, length, *l_it});
+                }
+                else if (paths.empty()) { //no match was found in the dictionary
+                    paths.push_back(Triplet{0, 0, *l_it});
+                }
+
+                Triplet ideal = chooseBest(paths);
+                writeTriplet(ideal, output);
+                
+                /* saftely transfers the read data from lookahead buffer
+                 * into search buffer */
+                for (auto i = 0; i <= ideal.length; ++i) {
+                    transfer(search, SEARCH_SIZE, look.at(0));
+                    look.erase(look.begin());
+                }
+
+                while (!paths.empty())
+                    paths.erase(paths.begin());
+
+            }
+        }
+    }
+
+
+    return output;
 }
 
 inline int filesize(std::ifstream &file) {
     file.seekg(std::ios::beg, std::ios::end);
-    int size = file.tellg(); //total number of bytes in stream
-    file.seekg(0);           //set pointer to beginning
+    int size = file.tellg();
+    file.seekg(0);
     return size;
 }
 
-inline void copy(struct Triplet &in, std::vector<char> &out) {
+inline void writeTriplet(struct Triplet in, std::vector<char> &out) {
     out.push_back(in.offset);
     out.push_back(in.length);
     out.push_back(in.token);
 }
 
-std::vector<Triplet> chooseBest(std::vector<Triplet> buffer) {
+inline void transfer(std::vector<char> &target, const uint8_t limit, char token) {
+    if (target.size() == limit)
+        target.erase(target.begin());
+
+    target.push_back(token);
+}
+
+struct Triplet chooseBest(std::vector<Triplet> buffer) {
     int max = 0;
     for (auto it = buffer.begin(); it < buffer.end(); it++) {
-        if (it->length > max) {
+        if (it->length >= max) {
             max = it->length;
         } else {
             delete &*it;    //memory leak?
-            buffer.erase(it);
         }
     }
-    return buffer;
-}
-
-std::vector<char> compress(char* &array, int &size) {
-    static std::vector<char> result;
-    std::vector<char> look;
-    std::vector<char> search;
-    std::vector<Triplet> paths;
-
-    look.reserve(LOOKAHEAD_SIZE);
-    search.reserve(SEARCH_SIZE);
-
-    for (int x = 0; x < size; x++) {
-        look.push_back(array[x]);
-
-        if (look.size() > LOOKAHEAD_SIZE) {
-            look.erase(look.begin());    //remove the copied token from the vector
-        }
-
-        //init vector iterators
-        auto s_it = search.begin();
-        auto l_it = look.begin();
-
-        int offset = 0;
-        int length = 0;
-
-        //traverse both vectors simulaneously
-        while (s_it < search.end() && l_it < look.end()) {
-            if (*s_it == *l_it) {
-                if (!offset)                //offset is non-zero UNTIL FIRST match
-                    offset = std::distance(s_it, search.end());
-                
-                s_it++;
-                l_it++;
-                length++;
-
-                if (l_it >= look.end() || s_it >= search.end())
-                    break; //if either vector reach their end, its a perfect match
-            
-            } else {
-                if (offset) {     //case 1: finds some matches but hits a mismatch
-                    paths.push_back(Triplet{offset, length, *l_it});
-                    offset = 0;
-                    length = 0;
-                }
-
-            }
-        }
-
-        //if it never matched or save the token because it matched once
-        if (paths.empty() || offset)
-            paths.push_back(Triplet{offset, length, *l_it});
-
-        if (paths.size() > 1)
-            chooseBest(paths);   //best path is largest, larger = more compression
-
-        length = paths[0].length;
-
-        //THIS IS THE DUMBEST SOLUTION EVER, TO BE REFACTORED IN THE FUTURE
-        if (look.size() == LOOKAHEAD_SIZE) {
-            while (length >= 0) { //when length is 0 TOKEN STILL NEEDS TO BE MOVED
-                search.push_back(look.at(0));
-                look.erase(look.begin());
-
-                if (search.size() > SEARCH_SIZE) //if > due to recent push, drop one
-                    search.erase(search.begin());
-            }
-        }
-
-        copy(paths[0], result);
-
-    }
-    //end of file handling for lz77. both vectors need to be joined somehow
-    //search vector has to expand into lookahead and compress as one
-    //
-    // *INSERT SOLUTION HERE*
-
-
-
-    return result;
+    return buffer[0];
 }
