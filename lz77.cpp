@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Previous size: " << size << " ";
     std::cout << "Compressed size: " << result.size() << "\n";
-    std::cout << "Results saved to current pwd" << argv[1] << ".lz77" << "\n";
+    std::cout << "Results saved to ./" << argv[1] << ".lz77" << "\n";
     return 0;
 }
 
