@@ -20,7 +20,7 @@ you may suffer in connection with using, modifying, or distributing this "lz77-c
  */
 
 inline int filesize(std::ifstream&);
-struct Triplet chooseBest(std::vector<Triplet>);
+struct Triplet chooseBest(std::vector<Triplet>&);
 inline void transfer(std::vector<char>&, uint8_t, char);
 inline void writeTriplet(struct Triplet, std::vector<char>&);
 std::vector<char> encode(char*&, int&);
@@ -65,10 +65,11 @@ int main(int argc, char* argv[]) {
 
 
 std::vector<char> encode(char* &array, int &size) {
-    std::vector<char> look;
-    look.reserve(LOOKAHEAD_SIZE+1);
     std::vector<char> search;
     search.reserve(SEARCH_SIZE);
+
+    std::vector<char> look;
+    look.reserve(LOOKAHEAD_SIZE+50);
 
     std::vector<Triplet> paths;
     std::vector<char> output;
@@ -90,7 +91,14 @@ std::vector<char> encode(char* &array, int &size) {
                      l_it++;
                      length++;
 
-                     if (length == int(look.size()-1))
+                     while (*s_it == *l_it) {
+                         look.push_back(array[x]);
+                         x++;
+                         length++;
+                         l_it++;
+                     }
+
+                     if (length >= int(look.size()-1))
                          break;
 
                  } else {
@@ -159,13 +167,13 @@ inline void transfer(std::vector<char> &target, const uint8_t limit, char token)
     target.push_back(token);
 }
 
-struct Triplet chooseBest(std::vector<Triplet> buffer) {
+struct Triplet chooseBest(std::vector<Triplet> &buffer) {
     int max = 0;
     for (auto it = buffer.begin(); it < buffer.end(); it++) {
         if (it->length >= max) {
             max = it->length;
         } else {
-            delete &*it;    //memory leak?
+            buffer.erase(it);
         }
     }
     return buffer[0];
