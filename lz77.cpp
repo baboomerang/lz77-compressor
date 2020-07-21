@@ -3,8 +3,11 @@
 #include <vector>
 #include <assert.h>
 
-#define LOOKAHEAD_SIZE 4
-#define SEARCH_SIZE 6
+//#define LOOKAHEAD_SIZE 4
+//#define SEARCH_SIZE 6
+
+#define LOOKAHEAD_SIZE 6
+#define SEARCH_SIZE 7
 
 /* LZ77 - COMPRESSOR written by baboomerang
  * DISCLAIMER: This "lz-77" is provided by baboomerang (the writer & provider of this software)\
@@ -69,7 +72,7 @@ std::vector<char> encode(char* &array, int &size) {
     search.reserve(SEARCH_SIZE);
 
     std::vector<char> look;
-    look.reserve(LOOKAHEAD_SIZE+50);
+    look.reserve(LOOKAHEAD_SIZE+150);
 
     std::vector<Triplet> paths;
     std::vector<char> output;
@@ -90,13 +93,6 @@ std::vector<char> encode(char* &array, int &size) {
                          offset = std::distance(s_it, search.end());
                      l_it++;
                      length++;
-
-                     while (*s_it == *l_it) {
-                         look.push_back(array[x]);
-                         x++;
-                         length++;
-                         l_it++;
-                     }
 
                      if (length >= int(look.size()-1))
                          break;
@@ -127,12 +123,10 @@ std::vector<char> encode(char* &array, int &size) {
              /* safely transfer the read data from lookahead buffer
               * into search buffer */
 
-             length = ideal.length + 1;
-             do {
+             for (auto x = ideal.length + 1; x > 0; x--) {
                  transfer(search, SEARCH_SIZE, look.at(0));
                  look.erase(look.begin());
-                 length--;
-             } while (length);
+             }
 
              while (!paths.empty())
                  paths.erase(paths.begin());
@@ -169,12 +163,20 @@ inline void transfer(std::vector<char> &target, const uint8_t limit, char token)
 
 struct Triplet chooseBest(std::vector<Triplet> &buffer) {
     int max = 0;
+    int bestoffset = 0;
     for (auto it = buffer.begin(); it < buffer.end(); it++) {
-        if (it->length >= max) {
+        //prioritize a great length first and then smallest offset
+        if (!bestoffset)
+            bestoffset = it->offset;
+
+        if (it->length > max) {
             max = it->length;
+        } else if (it->offset < bestoffset && it->length == max) {
+            bestoffset = it->offset;
         } else {
             buffer.erase(it);
         }
+
     }
     return buffer[0];
 }
