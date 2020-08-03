@@ -1,18 +1,4 @@
-#include <iostream>
-#include <fstream>
-#include <vector>
-
-#include <assert.h>
-#define assertm(exp, msg) assert(((void)msg, exp))
-
-#ifndef LOOK_SIZE
-#define LOOK_SIZE 4
-#endif
-
-#ifndef SEARCH_SIZE
-#define SEARCH_SIZE 6
-#endif
-
+//==================================================================================
 /* LZ77 COMPRESSOR - by baboomerang
  *  * DISCLAIMER: This "lz-77" is provided by baboomerang (the writer & provider \
  * of this software "as is" and "with all faults." baboomerang (the writer & \
@@ -27,6 +13,21 @@
  * for any damages you may suffer in connection with using, modifying, or \
  * distributing this "lz77-compressor" or any part of it.
  */
+//==================================================================================
+#include <iostream>
+#include <fstream>
+#include <vector>
+
+#include <assert.h>
+#define assertm(exp, msg) assert(((void)msg, exp))
+
+#ifndef LOOK_SIZE
+#define LOOK_SIZE 4
+#endif
+
+#ifndef SEARCH_SIZE
+#define SEARCH_SIZE 6
+#endif
 
 std::vector<char> encode(std::ifstream&);
 struct Triplet chooseBest(std::vector<struct Triplet>&);
@@ -45,6 +46,8 @@ inline int filesize(std::ifstream &file) {
     return size;
 }
 
+// OUTPUT RESULTS WILL VARY BASED ON SEARCH_SIZE AND LOOK_SIZE
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cout << "Usage: " << argv[0] << " <file>\n";
@@ -58,13 +61,12 @@ int main(int argc, char* argv[]) {
     assertm(output.is_open(), ("Cannot write file" + (std::string(argv[1]) + "lz.77") \
             + "double check write permissions.\nMake sure you aren't writing to a block device!"));
 
+    int size = filesize(input);
     std::vector<char> result = encode(input);
     output.write(result.data(), result.size());
 
-    //output will vary as you adjust the LOOK_SIZE and SEARCH_SIZE
-
-    std::cout << "Previous size: " << filesize(input) << " ";
-    std::cout << "Compressed size: " << result.size() << "\n";
+    std::cout << "Previous size: " << size << " ";
+    std::cout << "Compressed size: " << result.size() << "\n\n";
     std::cout << "Results saved to " << argv[1] << ".lz77" << "\n";
     return 0;
 }
@@ -72,9 +74,9 @@ int main(int argc, char* argv[]) {
 auto findMatch(std::vector<char> &window, \
         std::vector<char>::iterator itsearch, \
             std::vector<char>::iterator itlook) -> Triplet {
+
     int offset = 0;
     int length = 0;
-
     while (*itsearch == *itlook) {
         if (!offset)
             offset = std::distance(itsearch, window.end() - LOOK_SIZE);
@@ -93,13 +95,11 @@ std::vector<char> encode(std::ifstream &file) {
     std::vector<char> window;
     std::vector<char> result;
 
-    //it might have been slightly cleaner to create a user-defined type for the
-    //sliding window
-
     //initial setup
     for (int x = 0; x < LOOK_SIZE; x++)
         window.push_back(file.get());
 
+    //the main engine
     while (file) {  
             std::vector<Triplet> possiblepaths;
             auto it_look = window.end() - LOOK_SIZE;
@@ -108,10 +108,8 @@ std::vector<char> encode(std::ifstream &file) {
                         it_search < window.end() - LOOK_SIZE; it_search++) {
 
                 Triplet match = findMatch(window, it_search, it_look);
-
                 if (match.offset)
                     possiblepaths.push_back(match);
-
             }
 
             if (possiblepaths.empty())
@@ -123,20 +121,15 @@ std::vector<char> encode(std::ifstream &file) {
             result.push_back(bestpath.token);
 
             //shift the window n times
-            int n = bestpath.length;
-            do {
-                //this could be in a class and make the logic neater
+            for (int n = bestpath.length + 1; n > 0; n--) {
                 if (!file.eof())
-                    window.push_back(file.get()); //this wont shift window at EOF
+                    window.push_back(file.get());
                 else
-                    window.erase(window.begin()); //this fixes the above ^ only at EOF
-
-                if (window.size() > LOOK_SIZE + SEARCH_SIZE)
                     window.erase(window.begin());
 
-                n--;
-            } while (n > 0);
-
+                if (window.size() > SEARCH_SIZE + LOOK_SIZE)
+                    window.erase(window.begin());
+            }
     }
 
     return result;
@@ -145,7 +138,7 @@ std::vector<char> encode(std::ifstream &file) {
 struct Triplet chooseBest(std::vector<Triplet> &buffer) {
     int bestlength = 0;
     int optimaloffset = 0;
-
+ 
     //TODO: reverse the conditional to make it clearer for the reader
 
     for (auto it = buffer.begin(); it < buffer.end(); it++) {
