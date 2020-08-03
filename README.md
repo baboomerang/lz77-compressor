@@ -40,7 +40,6 @@ Results saved to ./case1.hex.lz77
 example2: $ ./lz77 titlescreen.bin
 Previous size: 960 Compressed size: 516
 Results saved to ./titlescreen.bin.lz77
-
 ```
 
 ## FILE COMPARISON
