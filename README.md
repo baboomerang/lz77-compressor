@@ -15,7 +15,7 @@ OR OTHERWISE PERSONAL/IMPERSONAL DATA. YOU HAVE BEEN WARNED.
 DISCLAIMER
 ------------------------------------------------
 ```
-DISCLAIMER: This "lz-77" is provided by baboomerang (the writer & provider of this software)\
+DISCLAIMER: This "lz77-compressor" is provided by baboomerang (the writer & provider of this software)\
 "as is" and "with all faults." baboomerang (the writer & provider of this software)\
 makes no representations or warranties of any kind concerning the safety,\
 suitability, lack of viruses, inaccuracies, typographical errors, or other harmful\
@@ -36,6 +36,11 @@ Usage: $ ./lz77 <file>
 example: $ ./lz77 case1.hex
 Previous size: 13 Compressed size: 18
 Results saved to ./case1.hex.lz77
+
+example2: $ ./lz77 titlescreen.bin
+Previous size: 960 Compressed size: 516
+Results saved to ./titlescreen.bin.lz77
+
 ```
 
 ## FILE COMPARISON
