@@ -46,7 +46,11 @@ inline int filesize(std::ifstream &file) {
     return size;
 }
 
-// OUTPUT RESULTS WILL VARY BASED ON SEARCH_SIZE AND LOOK_SIZE
+// WARNING: USES THE ADAPTIVE ENCODING SLIDING WINDOW METHOD WHICH IS DIFFERENT THAN
+// THE GENERIC SPEC. THE SEARCH BUFFER POINTER MOVES INTO THE LOOKAHEAD REGION
+// FOR BETTER COMPRESSION.
+
+// IN OTHER IMPLEMENTATIONS, THIS ONLY HAPPENS AT THE END OF THE FILE.
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -64,6 +68,9 @@ int main(int argc, char* argv[]) {
     int size = filesize(input);
     std::vector<char> result = encode(input);
     output.write(result.data(), result.size());
+
+    // OUTPUT RESULTS WILL VARY BASED ON SEARCH_SIZE AND LOOK_SIZE AND FILE SIZE
+    // TOO SMALL FILE SIZE AND YOU WILL GET NEGATIVE COMPRESSION
 
     std::cout << "Previous size: " << size << " ";
     std::cout << "Compressed size: " << result.size() << "\n\n";
@@ -83,11 +90,9 @@ auto findMatch(std::vector<char> &window, \
         
         length++;
         itlook++;
-
         if (*itsearch != *itlook)
             itsearch++;
     }
-
     return Triplet{offset, length, *itlook};
 }
 
@@ -104,6 +109,7 @@ std::vector<char> encode(std::ifstream &file) {
             std::vector<Triplet> possiblepaths;
             auto it_look = window.end() - LOOK_SIZE;
 
+            //match token in look buffer against every search buffer item
             for (auto it_search = window.begin(); \
                         it_search < window.end() - LOOK_SIZE; it_search++) {
 
