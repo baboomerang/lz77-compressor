@@ -11,8 +11,7 @@
  * solely responsible for the protection of your equipment and backup of your data, \
  * and baboomerang (the writer & provider of this software) will not be liable \
  * for any damages you may suffer in connection with using, modifying, or \
- * distributing this "lz77-compressor" or any part of it.
- */
+ * distributing this "lz77-compressor" or any part of it. */
 //==================================================================================
 #include <iostream>
 #include <fstream>
@@ -105,7 +104,7 @@ std::vector<char> encode(std::ifstream &file) {
         window.push_back(file.get());
 
     //the main engine
-    while (file) {  
+    while (file) {
             std::vector<Triplet> possiblepaths;
             auto it_look = window.end() - LOOK_SIZE;
 
@@ -144,7 +143,7 @@ std::vector<char> encode(std::ifstream &file) {
 struct Triplet chooseBest(std::vector<Triplet> &buffer) {
     int bestlength = 0;
     int optimaloffset = 0;
- 
+
     //TODO: reverse the conditional to make it clearer for the reader
 
     for (auto it = buffer.begin(); it < buffer.end(); it++) {
