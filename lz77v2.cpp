@@ -6,11 +6,11 @@
 #define assertm(exp, msg) assert(((void)msg, exp))
 
 #ifndef LOOK_SIZE
-#define LOOK_SIZE 6
+#define LOOK_SIZE 4
 #endif
 
 #ifndef SEARCH_SIZE
-#define SEARCH_SIZE 7
+#define SEARCH_SIZE 6
 #endif
 
 /* LZ77 COMPRESSOR - by baboomerang
@@ -21,7 +21,7 @@
  * typographical errors, or other harmful components of this "lz77-compressor". \
  * There are inherent dangers in the use of any software, and you are solely \
  * responsible for determining whether this "lz77-compressor" is compatible with \
- * your equipment and other software installed on your equipment. You are also 
+ * your equipment and other software installed on your equipment. You are also \
  * solely responsible for the protection of your equipment and backup of your data, \
  * and baboomerang (the writer & provider of this software) will not be liable \
  * for any damages you may suffer in connection with using, modifying, or \
@@ -38,6 +38,7 @@ struct Triplet {
 };
 
 inline int filesize(std::ifstream &file) {
+    file.seekg(0);
     file.seekg(std::ios::beg, std::ios::end);
     int size = file.tellg();
     file.seekg(0);
@@ -60,6 +61,8 @@ int main(int argc, char* argv[]) {
     std::vector<char> result = encode(input);
     output.write(result.data(), result.size());
 
+    //output will vary as you adjust the LOOK_SIZE and SEARCH_SIZE
+
     std::cout << "Previous size: " << filesize(input) << " ";
     std::cout << "Compressed size: " << result.size() << "\n";
     std::cout << "Results saved to " << argv[1] << ".lz77" << "\n";
@@ -67,14 +70,14 @@ int main(int argc, char* argv[]) {
 }
 
 auto findMatch(std::vector<char> &window, \
-        std::vector<char>::reverse_iterator itsearch, \
+        std::vector<char>::iterator itsearch, \
             std::vector<char>::iterator itlook) -> Triplet {
     int offset = 0;
     int length = 0;
 
     while (*itsearch == *itlook) {
         if (!offset)
-            offset = std::distance(window.rend() - LOOK_SIZE, itsearch);
+            offset = std::distance(itsearch, window.end() - LOOK_SIZE);
         
         length++;
         itlook++;
@@ -90,29 +93,25 @@ std::vector<char> encode(std::ifstream &file) {
     std::vector<char> window;
     std::vector<char> result;
 
+    //it might have been slightly cleaner to create a user-defined type for the
+    //sliding window
+
     //initial setup
-    for (int x = 0; x < 5; x++)
+    for (int x = 0; x < LOOK_SIZE; x++)
         window.push_back(file.get());
 
-    while (file) {
-            //  all iterators are relative to the end ]
-            //          it    lookit                  |
-            //  [][][][][i]    [v][][][][x] <---------]
-            //
-            //  btw, x.rend() == x.end() - 1;
-            //  x.rend() is a reverse iterator
-            //  x.end() is a forward iterator
-
+    while (file) {  
             std::vector<Triplet> possiblepaths;
             auto it_look = window.end() - LOOK_SIZE;
 
-            for (auto it_search = window.rend() - LOOK_SIZE; \
-                                    it_search > window.rbegin(); it_search--) {
+            for (auto it_search = window.begin(); \
+                        it_search < window.end() - LOOK_SIZE; it_search++) {
 
                 Triplet match = findMatch(window, it_search, it_look);
 
                 if (match.offset)
                     possiblepaths.push_back(match);
+
             }
 
             if (possiblepaths.empty())
@@ -123,13 +122,21 @@ std::vector<char> encode(std::ifstream &file) {
             result.push_back(bestpath.length);
             result.push_back(bestpath.token);
 
-
             //shift the window n times
             int n = bestpath.length;
             do {
-                window.push_back(file.get());
+                //this could be in a class and make the logic neater
+                if (!file.eof())
+                    window.push_back(file.get()); //this wont shift window at EOF
+                else
+                    window.erase(window.begin()); //this fixes the above ^ only at EOF
+
+                if (window.size() > LOOK_SIZE + SEARCH_SIZE)
+                    window.erase(window.begin());
+
                 n--;
-            } while (n);
+            } while (n > 0);
+
     }
 
     return result;
